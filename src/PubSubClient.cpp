@@ -197,7 +197,7 @@ boolean PubSubClient::connect(const char *id, const char *user, const char *pass
                 }
             }
             uint8_t llen;
-            uint16_t len = readPacket(&llen);
+            uint32_t len = readPacket(&llen);
 
             if (len == 4) {
                 if (buffer[3] == 0) {
@@ -243,12 +243,12 @@ boolean PubSubClient::readByte(uint8_t * result, uint16_t * index){
   return false;
 }
 
-uint16_t PubSubClient::readPacket(uint8_t* lengthLength) {
+uint32_t PubSubClient::readPacket(uint8_t* lengthLength) {
     uint16_t len = 0;
     if(!readByte(buffer, &len)) return 0;
     bool isPublish = (buffer[0]&0xF0) == MQTTPUBLISH;
     uint32_t multiplier = 1;
-    uint16_t length = 0;
+    uint32_t length = 0;
     uint8_t digit = 0;
     uint16_t skip = 0;
     uint8_t start = 0;
@@ -278,22 +278,16 @@ uint16_t PubSubClient::readPacket(uint8_t* lengthLength) {
             skip += 2;
         }
     }
-
+  
     for (uint16_t i = start;i<length;i++) {
         if(!readByte(&digit)) return 0;
-        if (this->stream) {
-            if (isPublish && len-*lengthLength-2>skip) {
-                this->stream->write(digit);
-            }
-        }
         if (len < MQTT_MAX_PACKET_SIZE) {
             buffer[len] = digit;
         }
+        if (isPublish && len-*lengthLength-2 == skip) {
+          return length;
+        }
         len++;
-    }
-
-    if (!this->stream && len > MQTT_MAX_PACKET_SIZE) {
-        len = 0; // This will cause the packet to be ignored.
     }
 
     return len;
@@ -318,9 +312,8 @@ boolean PubSubClient::loop() {
         }
         if (_client->available()) {
             uint8_t llen;
-            uint16_t len = readPacket(&llen);
+            uint32_t len = readPacket(&llen);
             uint16_t msgId = 0;
-            uint8_t *payload;
             if (len > 0) {
                 lastInActivity = t;
                 uint8_t type = buffer[0]&0xF0;
@@ -333,8 +326,7 @@ boolean PubSubClient::loop() {
                         // msgId only present for QOS>0
                         if ((buffer[0]&0x06) == MQTTQOS1) {
                             msgId = (buffer[llen+3+tl]<<8)+buffer[llen+3+tl+1];
-                            payload = buffer+llen+3+tl+2;
-                            callback(topic,payload,len-llen-3-tl-2);
+                            callback(topic, len-llen-3-tl-2+2+2);
 
                             buffer[0] = MQTTPUBACK;
                             buffer[1] = 2;
@@ -344,8 +336,7 @@ boolean PubSubClient::loop() {
                             lastOutActivity = t;
 
                         } else {
-                            payload = buffer+llen+3+tl;
-                            callback(topic,payload,len-llen-3-tl);
+                            callback(topic, len-llen-3-tl+2+2);
                         }
                     }
                 } else if (type == MQTTPINGREQ) {

@@ -23,7 +23,7 @@
 
 // MQTT_MAX_PACKET_SIZE : Maximum packet size
 #ifndef MQTT_MAX_PACKET_SIZE
-#define MQTT_MAX_PACKET_SIZE 128
+#define MQTT_MAX_PACKET_SIZE 512
 #endif
 
 // MQTT_KEEPALIVE : keepAlive interval in Seconds
@@ -78,9 +78,9 @@
 
 #if defined(ESP8266) || defined(ESP32)
 #include <functional>
-#define MQTT_CALLBACK_SIGNATURE std::function<void(char*, uint8_t*, unsigned int)> callback
+#define MQTT_CALLBACK_SIGNATURE std::function<void(char*, unsigned long)> callback
 #else
-#define MQTT_CALLBACK_SIGNATURE void (*callback)(char*, uint8_t*, unsigned int)
+#define MQTT_CALLBACK_SIGNATURE void (*callback)(char*, unsigned long)
 #endif
 
 #define CHECK_STRING_LENGTH(l,s) if (l+2+strlen(s) > MQTT_MAX_PACKET_SIZE) {_client->stop();return false;}
@@ -94,8 +94,7 @@ private:
    unsigned long lastInActivity;
    bool pingOutstanding;
    MQTT_CALLBACK_SIGNATURE;
-   uint16_t readPacket(uint8_t*);
-   boolean readByte(uint8_t * result);
+   uint32_t readPacket(uint8_t*);
    boolean readByte(uint8_t * result, uint16_t * index);
    boolean write(uint8_t header, uint8_t* buf, uint16_t length);
    uint16_t writeString(const char* string, uint8_t* buf, uint16_t pos);
@@ -167,6 +166,7 @@ public:
    boolean loop();
    boolean connected();
    int state();
+   boolean readByte(uint8_t * result);
 };
 
 
