@@ -326,7 +326,7 @@ boolean PubSubClient::loop() {
                         // msgId only present for QOS>0
                         if ((buffer[0]&0x06) == MQTTQOS1) {
                             msgId = (buffer[llen+3+tl]<<8)+buffer[llen+3+tl+1];
-                            callback(topic, len-llen-3-tl-2+2+2);
+                            callback(topic, len-llen-3-tl-2+2);
 
                             buffer[0] = MQTTPUBACK;
                             buffer[1] = 2;
@@ -336,7 +336,7 @@ boolean PubSubClient::loop() {
                             lastOutActivity = t;
 
                         } else {
-                            callback(topic, len-llen-3-tl+2+2);
+                            callback(topic, len-llen-3-tl+2);
                         }
                     }
                 } else if (type == MQTTPINGREQ) {
@@ -444,7 +444,6 @@ boolean PubSubClient::beginPublish(const char* topic, unsigned int plength, bool
         // Send the header and variable length field
         uint16_t length = MQTT_MAX_HEADER_SIZE;
         length = writeString(topic,buffer,length);
-        uint16_t i;
         uint8_t header = MQTTPUBLISH;
         if (retained) {
             header |= 1;
